@@ -1,0 +1,10 @@
+{
+  "name": "zotero-extra-meta",
+  "version": "0.1.7",
+  "private": true,
+  "description": "Zotero 10 plugin displaying Extra metadata fields as styled columns and editable Info rows.",
+  "scripts": {
+    "test": "node --check bootstrap.js && node tests/check-extra-meta.js",
+    "build": "python3 scripts/build-xpi.py"
+  }
+}
