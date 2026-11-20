@@ -60,6 +60,15 @@ var ExtraMetaMain = (function () {
 
 	const INFO_FIELDS = [
 		{ id: "venue", key: "tex.venueabbr", l10nID: "extra-meta-row-venue", fallbackLabel: "Venue" },
+		{
+			id: "venuetag",
+			key: "tex.venuetag",
+			l10nID: "extra-meta-row-venuetag",
+			fallbackLabel: "Venue Tag",
+			getValue: (extra) => ExtraMetaExtra.getVenueTag(extra),
+			isAliasLine: (parsed) => ExtraMetaExtra.isVenueTagAliasLine(parsed),
+			normalize: (val) => ExtraMetaVenues.normalizeVenueTags(val),
+		},
 		{ id: "affiliation", key: "tex.affiliation", l10nID: "extra-meta-row-affiliation", fallbackLabel: "Affiliation" },
 		{ id: "sourcecode", key: "tex.sourcecode", l10nID: "extra-meta-row-sourcecode", fallbackLabel: "Source Code" },
 		{ id: "projecturl", key: "tex.projecturl", l10nID: "extra-meta-row-projecturl", fallbackLabel: "Project URL" },
@@ -90,6 +99,8 @@ var ExtraMetaMain = (function () {
 
 	let pluginID = null;
 	let strings = null;
+	let styleVersion = 0;
+	let styleHref = STYLE_URI;
 	const registeredColumnIDs = [];
 	const registeredRowIDs = [];
 	const boundValueElements = new WeakSet();
@@ -239,17 +250,40 @@ var ExtraMetaMain = (function () {
 		return button;
 	}
 
+	function createVenueChip(doc, className, text) {
+		const chip = createHtml(doc, "span", className);
+		const label = createHtml(doc, "span", "em-venue-label");
+		label.textContent = text;
+		chip.appendChild(label);
+		return chip;
+	}
+
 	function renderVenueCell(index, data, column, isFirstColumn, doc) {
 		const { cell, container } = createCell(doc, column, "em-venue-cell", isFirstColumn);
-		const value = String(data || "").trim();
-		if (!value) {
+		const parsed = ExtraMetaVenues.decodeVenueData(data);
+		if (!parsed.venue && !parsed.distinctions.length) {
 			return cell;
 		}
-		const badge = createHtml(doc, "span", "em-venue-badge");
-		badge.dataset.tone = ExtraMetaVenues.resolveTone(value);
-		badge.setAttribute("title", value);
-		badge.textContent = value;
-		container.appendChild(badge);
+		if (!parsed.distinctions.length) {
+			const badge = createVenueChip(doc, "em-venue-badge", parsed.venue);
+			badge.dataset.tone = parsed.tone;
+			badge.setAttribute("title", parsed.tooltip);
+			container.appendChild(badge);
+			return cell;
+		}
+		const group = createHtml(doc, "span", "em-venue-group");
+		group.setAttribute("title", parsed.tooltip);
+		if (parsed.venue) {
+			const badge = createVenueChip(doc, "em-venue-badge", parsed.venue);
+			badge.dataset.tone = parsed.tone;
+			group.appendChild(badge);
+		}
+		for (const dist of parsed.distinctions) {
+			const tag = createVenueChip(doc, "em-venue-tag", dist.label);
+			tag.dataset.kind = dist.kind;
+			group.appendChild(tag);
+		}
+		container.appendChild(group);
 		return cell;
 	}
 
@@ -305,9 +339,15 @@ var ExtraMetaMain = (function () {
 			{
 				dataKey: "venue",
 				label: getL10nString("extra-meta-col-venue", "Venue"),
-				width: "96",
-				minWidth: 64,
-				dataProvider: (item) => ExtraMetaExtra.getValue(getExtraString(item), "tex.venueabbr"),
+				width: "140",
+				minWidth: 72,
+				dataProvider: (item) => {
+					const extra = getExtraString(item);
+					return ExtraMetaVenues.encodeVenueData(
+						ExtraMetaExtra.getValue(extra, "tex.venueabbr"),
+						ExtraMetaExtra.getVenueTag(extra)
+					);
+				},
 				renderCell: renderVenueCell,
 			},
 			{
@@ -536,13 +576,18 @@ var ExtraMetaMain = (function () {
 	function addToWindow(win) {
 		win.MozXULElement.insertFTLIfNeeded(FTL_FILE);
 		const doc = win.document;
-		if (!doc.getElementById(STYLE_ID)) {
-			const link = doc.createElementNS(HTML_NS, "link");
-			link.id = STYLE_ID;
-			link.rel = "stylesheet";
-			link.href = STYLE_URI;
-			doc.documentElement.appendChild(link);
+		const existing = doc.getElementById(STYLE_ID);
+		if (existing) {
+			if (existing.href === styleHref) {
+				return;
+			}
+			existing.remove();
 		}
+		const link = doc.createElementNS(HTML_NS, "link");
+		link.id = STYLE_ID;
+		link.rel = "stylesheet";
+		link.href = styleHref;
+		doc.documentElement.appendChild(link);
 	}
 
 	function removeFromWindow(win) {
@@ -574,6 +619,7 @@ var ExtraMetaMain = (function () {
 
 	function init(options) {
 		pluginID = options.pluginID;
+		styleHref = `${STYLE_URI}?v=${Date.now()}-${++styleVersion}`;
 		registerColumns();
 		registerInfoRows();
 	}

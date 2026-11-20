@@ -56,6 +56,21 @@ var ExtraMetaExtra = (function () {
 		return parseFields(extra).get(normalizeKey(key)) ?? "";
 	}
 
+	function getVenueTag(extra) {
+		if (!extra) {
+			return "";
+		}
+		const fields = parseFields(extra);
+		return fields.get("tex.venuetag")
+			|| fields.get("tex.venueaward")
+			|| fields.get("tex.venuetier")
+			|| "";
+	}
+
+	function isVenueTagAliasLine(parsed) {
+		return Boolean(parsed && (parsed.normalizedKey === "tex.venueaward" || parsed.normalizedKey === "tex.venuetier"));
+	}
+
 	/**
 	 * Return Extra with `key` set to `value`. Existing line(s) for `key` (and
 	 * any alias lines matched by `isAliasLine`) are replaced at the first
@@ -289,6 +304,8 @@ var ExtraMetaExtra = (function () {
 		sanitizeValue,
 		parseLine,
 		getValue,
+		getVenueTag,
+		isVenueTagAliasLine,
 		setValue,
 		sanitizeUrl,
 		isOpenReviewUrl,

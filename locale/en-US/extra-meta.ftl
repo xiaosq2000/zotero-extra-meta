@@ -1,4 +1,5 @@
 extra-meta-row-venue = Venue
+extra-meta-row-venuetag = Venue Tag
 extra-meta-row-affiliation = Affiliation
 extra-meta-row-sourcecode = Source Code
 extra-meta-row-projecturl = Project URL
